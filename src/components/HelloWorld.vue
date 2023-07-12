@@ -1,58 +1,97 @@
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-eslint" target="_blank" rel="noopener">eslint</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
+  <div class="main">
+    <form id="payment-form" @submit.prevent="handleSubmit">
+      <div class="content">
+        <div id="card-element"></div>
+        <button id="submit">add card</button>
+      </div>
+    </form>
+    <div class="listcard">
+      <button @click="handleListCard">list card</button>
+      <div class="note">
+        add card sẽ là card thứ 2 ( card đầu là card default )
+      </div>
+      <div class="cards">
+        <div class="info" v-for="(item, index) in listCard" :key="index">
+          cardId: {{ item.id }} , brand: {{ item.brand }} , last4 :
+          {{ item.last4 }} , customer: {{ item.customer }} , exp_month:
+          {{ item.exp_month }} , exp_year: {{ item.exp_year }} ,
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
-<script>
-export default {
-  name: 'HelloWorld',
-  props: {
-    msg: String
+<script setup>
+import { onMounted, ref } from "vue";
+import { loadStripe } from "@stripe/stripe-js";
+import Stripe from "stripe";
+
+const stripeJs = new Stripe(
+  "sk_test_51LFV4fAvLtM7cAjKd7Z7XJHcuS6qvz55a9xyjAtj9GBLtQKoQeIY6JRFn85LVGBgOVnDtjQ56TpTzIq47cbRynqH00Ubs1iXDA"
+);
+let listCard = ref([]);
+let stripePromise;
+let cardElement;
+const customerId = "cus_MNclDrTbC1tFon";
+
+onMounted(async () => {
+  stripePromise = await loadStripe(
+    "pk_test_51LFV4fAvLtM7cAjK4GAALyctkfSVmJ0YrPSVuU2mJA6h0O2ZgP0w1fdW6TSgahnv1WZxkbA7sE6RSEBv024xgenj00o8szPE3E"
+  );
+  const elements = stripePromise.elements();
+  cardElement = elements.create("card", {
+    iconStyle: "solid",
+    hidePostalCode: true,
+    style: {
+      base: {
+        fontSize: "16px",
+        color: "#424770",
+        "::placeholder": {
+          color: "#aab7c4",
+        },
+      },
+      invalid: {
+        color: "#9e2146",
+      },
+    },
+  });
+  cardElement.mount("#card-element");
+});
+
+const handleSubmit = async () => {
+  try {
+    const { token } = await stripePromise.createToken(cardElement);
+    await stripeJs.customers.createSource(
+      customerId, // customerId
+      { source: token.id }
+    );
+    alert("success");
+  } catch (error) {
+    alert("error");
   }
-}
+};
+const handleListCard = async () => {
+  const list = await stripeJs.customers.listSources(customerId, {
+    object: "card",
+  });
+  listCard.value = list.data;
+};
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-h3 {
-  margin: 40px 0 0;
+.main {
+  display: flex;
+  justify-content: center;
+  flex-wrap: nowrap;
+  flex-direction: column;
 }
-ul {
-  list-style-type: none;
-  padding: 0;
+#payment-form {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
 }
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
+#payment-form .content {
+  width: 400px;
 }
 </style>
